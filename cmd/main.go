@@ -187,29 +187,15 @@ func main() {
 		log.Fatal("no arguments found, exiting")
 	}
 
-	var argv string = os.Args[1]
-
-	var inputObj *ActiveResponseInput
-
-	inputObj, err := ParseArg(&argv)
+	var alertContent *map[string]any
+	alertContent, err := ParseWazuhArg(os.Args)
 
 	if err != nil {
 		panic(err)
 	}
 
-	alertField, ok := inputObj.Params["alert"]
-	if !ok {
-		log.Fatal("input json doesn't contain any  \"alert\" field")
-	}
-
-	// fmt.Println(alertField)
-	// fmt.Printf("\n\nalert type: %T\n\n", alertField)
-
-	//get the actual alert contents
-	var alertContent map[string]any = alertField.(map[string]any)
-
 	//now extract the full_log field
-	var fullLog string = alertContent["full_log"].(string)
+	var fullLog string = (*alertContent)["full_log"].(string)
 	fmt.Println(fullLog)
 
 	var b bool = false
