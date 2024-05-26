@@ -179,7 +179,14 @@ type OutputContainer struct {
 
 func main() {
 
-	//	idsChan := make(chan string)
+	f, err := os.OpenFile("go_stix.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+
+	if err != nil {
+		log.Fatalf("Error opening file: %v", err)
+	}
+	defer f.Close()
+
+	log.SetOutput(f)
 
 	var argsLen int = len(os.Args)
 
@@ -188,7 +195,7 @@ func main() {
 	}
 
 	var alertContent *map[string]any
-	alertContent, err := ParseWazuhArg(os.Args)
+	alertContent, err = ParseWazuhArg(os.Args)
 
 	if err != nil {
 		panic(err)
@@ -196,7 +203,6 @@ func main() {
 
 	//now extract the full_log field
 	var fullLog string = (*alertContent)["full_log"].(string)
-	fmt.Println(fullLog)
 
 	var b bool = false
 
@@ -260,4 +266,6 @@ func main() {
 	check(err)
 
 	fmt.Println(string(data))
+
+	log.Print("matched and indicator")
 }
