@@ -9,6 +9,8 @@ import (
 	"github.com/TcM1911/stix2"
 )
 
+const StixDir = "/home/wazuh/objects/"
+
 type id = stix2.Identifier
 
 // returns a STIX relationship of type `t` between obj1 and obj2
@@ -169,7 +171,7 @@ func storeBundle(bundle *stix2.Bundle) {
 
 func writeJsonToFile(data []byte, objId string) error {
 
-	err := os.WriteFile("objects/"+objId+".json", data, 0664)
+	err := os.WriteFile(StixDir+objId+".json", data, 0664)
 	check(err)
 
 	return nil

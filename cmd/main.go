@@ -14,6 +14,8 @@ import (
 	"github.com/TcM1911/stix2"
 )
 
+const arLogFile = "/var/ossec/logs/active-responses.log"
+
 func check(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -26,15 +28,15 @@ func removeExtension(fileName string) string {
 }
 
 // returns the id of the object containing the given substring
-func findFileWithSubstr(dir string, fileNamePrefix string, substr string) string {
+func findFileWithSubstr(fileNamePrefix string, substr string) string {
 
-	files, err := os.ReadDir(dir)
+	files, err := os.ReadDir(generator.StixDir)
 	check(err)
 
 	for _, file := range files {
 		if strings.Contains(file.Name(), fileNamePrefix) {
 
-			data, err := os.ReadFile(dir + file.Name())
+			data, err := os.ReadFile(generator.StixDir + file.Name())
 			check(err)
 
 			if strings.Contains(string(data), substr) {
@@ -105,16 +107,16 @@ func (b *cyberBundles) getCollection(i int) *stix2.Collection {
 }
 
 // loads every single STIX bundle object
-func (b *cyberBundles) LoadBundles(dir string) {
+func (b *cyberBundles) LoadBundles() {
 
-	files, err := os.ReadDir(dir)
+	files, err := os.ReadDir(generator.StixDir)
 	check(err)
 
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), "bundle") {
 			//found a new bundle to add to collections
 			bundleId := removeExtension(file.Name())
-			c := readBundle(dir, bundleId)
+			c := readBundle(bundleId)
 			b.AddCollection(c)
 			fmt.Printf("just loaded bundle\n")
 		}
@@ -163,8 +165,8 @@ func collectionToMaps(collection *stix2.Collection) []*map[string]any {
 }
 
 // reads a bundle from file and stores it in a stix2.Collection
-func readBundle(dir string, bundleId string) *stix2.Collection {
-	data, err := os.ReadFile(dir + bundleId + ".json")
+func readBundle(bundleId string) *stix2.Collection {
+	data, err := os.ReadFile(generator.StixDir + bundleId + ".json")
 	check(err)
 
 	c, err := stix2.FromJSON(data)
@@ -194,7 +196,7 @@ func readInput() (*string, error) {
 
 func main() {
 
-	f, err := os.OpenFile("go_stix.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile(arLogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0660)
 
 	if err != nil {
 		log.Fatalf("Error opening file: %v", err)
@@ -202,7 +204,7 @@ func main() {
 	defer f.Close()
 
 	log.SetOutput(f)
-	log.Print("started")
+	log.Print("match-indicator started")
 
 	jsonInput, err := readInput()
 	if err != nil {
@@ -223,9 +225,9 @@ func main() {
 
 	done := make(chan bool)
 
-	if _, err := os.Stat("objects/"); err != nil {
+	if _, err := os.Stat(generator.StixDir); err != nil {
 		if os.IsNotExist(err) {
-			err := os.Mkdir("objects", 0775)
+			err := os.Mkdir(generator.StixDir, 0775)
 			check(err)
 
 			//generate base files
@@ -242,14 +244,14 @@ func main() {
 	}
 
 	//load base objects
-	cyberIdentity := findFileWithSubstr("objects/", "identity", "Cyber team")
+	cyberIdentity := findFileWithSubstr("identity", "Cyber team")
 
 	//get bundles that contain IoCs and related STIX objects
 	bundles := newCyberBundles(&cyberIdentity)
 
 	go func() {
 		defer close(done)
-		bundles.LoadBundles("objects/")
+		bundles.LoadBundles()
 		done <- true
 	}()
 
@@ -261,8 +263,7 @@ func main() {
 	//does our input string (wazuh alert) match any indicator?
 	var i int = bundles.FindMatchingIndicator(inputString)
 
-	switch i {
-	case -1:
+	if i == -1 {
 		fmt.Fprintf(os.Stderr, "no matching indicator found. Exiting\n")
 		return
 	}
@@ -282,5 +283,5 @@ func main() {
 
 	fmt.Println(string(data))
 
-	log.Print("matched and indicator")
+	log.Print("matched an indicator")
 }
