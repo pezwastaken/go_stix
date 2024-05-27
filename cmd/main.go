@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go_stix/generator"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -47,11 +48,11 @@ func findFileWithSubstr(dir string, fileNamePrefix string, substr string) string
 }
 
 // tries to match str and indicator.Pattern
-func matchIndicator(indicator *stix2.Indicator, str *string) bool {
-	pattern := strings.Split(indicator.Pattern, "'")[1]
-	return strings.Contains(*str, pattern)
+// func matchIndicator(indicator *stix2.Indicator, str *string) bool {
+// 	pattern := strings.Split(indicator.Pattern, "'")[1]
+// 	return strings.Contains(*str, pattern)
 
-}
+// }
 
 type Indicator struct {
 	Id      string `json:"id"`
@@ -177,6 +178,20 @@ type OutputContainer struct {
 	Objects []*map[string]any `json:"objects"`
 }
 
+// read json from stdin
+func readInput() (*string, error) {
+
+	bytes, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		log.Printf("can't read from stdin: %v", err)
+		return nil, err
+	}
+
+	line := string(bytes)
+	return &line, nil
+
+}
+
 func main() {
 
 	f, err := os.OpenFile("go_stix.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -187,15 +202,15 @@ func main() {
 	defer f.Close()
 
 	log.SetOutput(f)
+	log.Print("started")
 
-	var argsLen int = len(os.Args)
-
-	if argsLen < 2 {
-		log.Fatal("no arguments found, exiting")
+	jsonInput, err := readInput()
+	if err != nil {
+		panic(err)
 	}
 
 	var alertContent *map[string]any
-	alertContent, err = ParseWazuhArg(os.Args)
+	alertContent, err = ParseWazuhArg(jsonInput)
 
 	if err != nil {
 		panic(err)
@@ -210,7 +225,7 @@ func main() {
 
 	if _, err := os.Stat("objects/"); err != nil {
 		if os.IsNotExist(err) {
-			err := os.Mkdir("objects", 0755)
+			err := os.Mkdir("objects", 0775)
 			check(err)
 
 			//generate base files

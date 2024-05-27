@@ -24,12 +24,11 @@ func ParseArg(arg *string) (*ActiveResponseInput, error) {
 
 }
 
-func ParseWazuhArg(a []string) (*map[string]any, error) {
+func ParseWazuhArg(jsonString *string) (*map[string]any, error) {
 
 	var inputObj *ActiveResponseInput
-	var jsonString string = a[1]
 
-	inputObj, err := ParseArg(&jsonString)
+	inputObj, err := ParseArg(jsonString)
 
 	if err != nil {
 		return nil, err
@@ -39,9 +38,6 @@ func ParseWazuhArg(a []string) (*map[string]any, error) {
 	if !ok {
 		return nil, errors.New("input json doesn't contain any alert")
 	}
-
-	// fmt.Println(alertField)
-	// fmt.Printf("\n\nalert type: %T\n\n", alertField)
 
 	//get the actual alert contents
 	var alertContent map[string]any = alertField.(map[string]any)
