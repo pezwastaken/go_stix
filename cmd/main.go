@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"go_stix/generator"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -14,7 +14,9 @@ import (
 	"github.com/TcM1911/stix2"
 )
 
-const arLogFile = "/var/ossec/logs/active-responses.log"
+const arLogFile = "active-responses.log"
+
+//const arLogFile = "/var/ossec/logs/active-responses.log"
 
 func check(err error) {
 	if err != nil {
@@ -118,7 +120,6 @@ func (b *cyberBundles) LoadBundles() {
 			bundleId := removeExtension(file.Name())
 			c := readBundle(bundleId)
 			b.AddCollection(c)
-			fmt.Printf("just loaded bundle\n")
 		}
 	}
 }
@@ -181,16 +182,15 @@ type OutputContainer struct {
 }
 
 // read json from stdin
-func readInput() (*string, error) {
+func readInput() string {
 
-	bytes, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		log.Printf("can't read from stdin: %v", err)
-		return nil, err
-	}
+	var line string
+	s := bufio.NewScanner(os.Stdin)
+	s.Scan()
 
-	line := string(bytes)
-	return &line, nil
+	line = s.Text()
+
+	return line
 
 }
 
@@ -206,25 +206,31 @@ func main() {
 	log.SetOutput(f)
 	log.Print("match-indicator started")
 
-	jsonInput, err := readInput()
+	jsonInput := readInput()
+
+	log.Printf("DEBUG | jsonInput: %v", jsonInput)
 	if err != nil {
+		log.Printf("error during json input reading: %v", err)
 		panic(err)
 	}
 
 	var alertContent *map[string]any
-	alertContent, err = ParseWazuhArg(jsonInput)
+	alertContent, err = ParseWazuhArg(&jsonInput)
 
 	if err != nil {
+		log.Printf("error during ParseWazuhArg: %v", err)
 		panic(err)
 	}
 
 	//now extract the full_log field
 	var fullLog string = (*alertContent)["full_log"].(string)
+	log.Printf("DEBUG | full_log: %v", fullLog)
 
 	var b bool = false
 
 	done := make(chan bool)
 
+	// make sure base files exist
 	if _, err := os.Stat(generator.StixDir); err != nil {
 		if os.IsNotExist(err) {
 			err := os.Mkdir(generator.StixDir, 0775)
@@ -238,7 +244,6 @@ func main() {
 			check(err)
 		}
 	}
-
 	if b {
 		<-done
 	}
@@ -264,7 +269,7 @@ func main() {
 	var i int = bundles.FindMatchingIndicator(inputString)
 
 	if i == -1 {
-		fmt.Fprintf(os.Stderr, "no matching indicator found. Exiting\n")
+		log.Print("DEBUG | no matching indicator found. Exiting\n")
 		return
 	}
 

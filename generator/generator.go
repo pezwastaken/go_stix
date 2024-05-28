@@ -9,7 +9,9 @@ import (
 	"github.com/TcM1911/stix2"
 )
 
-const StixDir = "/home/wazuh/objects/"
+const StixDir = "objects/"
+
+//const StixDir = "/home/wazuh/objects/"
 
 type id = stix2.Identifier
 
